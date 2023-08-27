@@ -1,0 +1,58 @@
+import streamlit as st
+from langchain import LLMChain
+from langchain.chat_models import ChatOpenAI
+from langchain.prompts.chat import (ChatPromptTemplate,
+                                    HumanMessagePromptTemplate,
+                                    SystemMessagePromptTemplate)
+from langchain.document_loaders import *
+from langchain.chains.summarize import load_summarize_chain
+import tempfile
+from langchain.docstore.document import Document
+
+st.title('VandySummary')
+
+def summarizeDoc(docs):
+    llm = ChatOpenAI(temperature=0, model_name="gpt-3.5-turbo-16k")
+    chain = load_summarize_chain(llm, chain_type="stuff")
+    return chain.run(docs)
+
+def keyIdeaGenerator(summary_string):
+    chat = ChatOpenAI(
+        model="gpt-3.5-turbo-16k",
+        temperature=0
+    )
+    system_template = """You are an assistant designed to generate key ideas from a summarized text."""
+    system_message_prompt = SystemMessagePromptTemplate.from_template(system_template)
+    human_template = """The summarized text is: '{summary_string}'. Please generate the key ideas from it."""
+    human_message_prompt = HumanMessagePromptTemplate.from_template(human_template)
+    chat_prompt = ChatPromptTemplate.from_messages(
+        [system_message_prompt, human_message_prompt]
+    )
+
+    chain = LLMChain(llm=chat, prompt=chat_prompt)
+    result = chain.run(summary_string=summary_string)
+    return result # returns string   
+
+def display_summary(summary_string):
+    if summary_string:
+        st.markdown(f"**Summarized Text:** {summary_string}")
+    else:
+        st.markdown("No summary available.")
+
+def display_key_ideas(key_ideas):
+    if key_ideas:
+        st.markdown(f"**Key Ideas:** {key_ideas}")
+    else:
+        st.markdown("No key ideas available.")
+
+text = st.text_input('Enter your text here')
+doc =  [Document(page_content=text, metadata={'source': 'local'})] if text else None
+
+if st.button('Generate Summary and Key Ideas'):
+    if doc:
+        summary_string = summarizeDoc(doc)
+        key_ideas = keyIdeaGenerator(summary_string)
+        display_summary(summary_string)
+        display_key_ideas(key_ideas)
+    else:
+        st.markdown("Please enter text to generate summary and key ideas.")
